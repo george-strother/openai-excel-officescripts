@@ -1,3 +1,12 @@
+// OpenAI in Excel Script.  Meant for usage within Power Automate and Excel Online
+
+async function cellRangeToJSON(workbook: ExcelScript.Workbook, sheetName: string, range: string) {
+    const sheet = workbook.getWorksheet(sheetName);
+    const rangeValues = sheet.getRange(range).getValues();
+    const rangeValuesJSON = JSON.stringify(rangeValues);
+    return rangeValuesJSON;
+}
+
 async function main(workbook: ExcelScript.Workbook) {
     
     // Set the OpenAI API key - You'll need to add this in the Excel file or replace this part with your key
@@ -5,14 +14,20 @@ async function main(workbook: ExcelScript.Workbook) {
     const endpoint: string = "https://api.openai.com/v1/completions";
 
     // get worksheet info
-    const sheet = workbook.getWorksheet("Prompt");
-    // the ask
-    const mytext = sheet.getRange("B2").getValue();
-
+    const promptSheet = workbook.getWorksheet("Prompt");
+    // the ask - if cell D5 of Prompt contains False, we'll just use the value of B2
+    //    if it contains True, we'll combine the value of B2 with the cellRangeToJSON function
+    //     then we'll combine the cell value of B2
+    //     with the CellRangeToJSON function of 
+    //     the "Data" worksheet and the range of A1:B1000
+    //     otherwise we just use the value of B2
+    const splitString = "/* Based on the first 1000 rows of data in the 'Data' sheet rows 1 to 1000 as json: */";
+    const mytext = promptSheet.getRange("D5").getValue() ? promptSheet.getRange("B2").getValue() + splitString + cellRangeToJSON(workbook, "Data", "A1:B1000") : promptSheet.getRange("B2").getValue();
+    
     // useful if if we get more than one row back
     const result = workbook.getWorksheet("Result");
     result.getRange("A1:D1000").clear();
-    sheet.getRange("B3").setValue(" ")
+    promptSheet.getRange("B3").setValue(" ")
 
     // Set the model engine and prompt
     const model: string = "text-davinci-002";
@@ -48,11 +63,11 @@ async function main(workbook: ExcelScript.Workbook) {
     // Output the generated text
    // console.log(text);
   
-   const output = sheet.getRange("B4");
+   const output = promptSheet.getRange("B4");
    
    output.setValue(text);
 
-  const cell = sheet.getRange("B4");
+  const cell = promptSheet.getRange("B4");
 
   // Split the cell contents by new line
 
@@ -75,7 +90,7 @@ async function main(workbook: ExcelScript.Workbook) {
 
  // console.log(offset)
   if (offset > 1) {
-    sheet.getRange("B3").setValue("Check 'Result' sheet to get answers separated by multiple rows")
+    promptSheet.getRange("B3").setValue("Check 'Result' sheet to get answers separated by multiple rows")
 
   }
 }
